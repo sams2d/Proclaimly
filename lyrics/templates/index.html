@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lyrics Presentation - Control Panel</title>
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Segoe UI, sans-serif;
+        }
+
+        body{
+            background:#1b1b1b;
+            color:white;
+            height:100vh;
+        }
+
+        .container{
+            display:grid;
+            grid-template-columns:350px 1fr;
+            height:100vh;
+        }
+
+        /* Left Panel */
+
+        .sidebar{
+            background:#252525;
+            border-right:1px solid #444;
+            display:flex;
+            flex-direction:column;
+        }
+
+        .header{
+            padding:20px;
+            border-bottom:1px solid #444;
+            font-size:24px;
+            font-weight:bold;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+        }
+
+        .header .open-presentation{
+            font-size:13px;
+            font-weight:normal;
+            padding:8px 12px;
+        }
+
+        .song-list{
+            flex:1;
+            overflow-y:auto;
+            padding:10px;
+        }
+
+        .song{
+            background:#333;
+            padding:12px;
+            border-radius:8px;
+            margin-bottom:10px;
+            cursor:pointer;
+            transition:.2s;
+        }
+
+        .song:hover{
+            background:#444;
+        }
+
+        .song.active{
+            background:#0d6efd;
+        }
+
+        /* Right Panel */
+
+        .content{
+            display:flex;
+            flex-direction:column;
+        }
+
+        .preview{
+            flex:1;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            font-size:38px;
+            text-align:center;
+            padding:50px;
+            background:black;
+            white-space:pre-line;
+        }
+
+        .slide-position{
+            padding:6px 20px;
+            font-size:13px;
+            color:#999;
+            background:#111;
+        }
+
+        .controls{
+
+            background:#252525;
+            padding:20px;
+            display:grid;
+            grid-template-columns:repeat(6,1fr);
+            gap:12px;
+
+        }
+
+        button{
+
+            padding:14px;
+            border:none;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:15px;
+            background:#0d6efd;
+            color:white;
+
+        }
+
+        button:hover{
+
+            background:#0b5ed7;
+
+        }
+
+        button:disabled{
+            background:#3a3a3a;
+            cursor:not-allowed;
+        }
+
+        button.toggled{
+            outline:2px solid white;
+        }
+
+        .danger{
+
+            background:#dc3545;
+
+        }
+
+        .danger:hover{
+
+            background:#bb2d3b;
+
+        }
+
+        .secondary{
+
+            background:#6c757d;
+
+        }
+
+        .secondary:hover{
+
+            background:#5c636a;
+
+        }
+
+    </style>
+
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Left -->
+
+    <div class="sidebar">
+
+        <div class="header">
+            <span style="font-size: 18px;;">Proclaimly<br><p style="font-size:12px; margin:5px 0 0 0;">Lyrics Presenter</p></span>
+            <button class="open-admin" onclick="window.open('/admin/', '_blank')">Admin Panel ↗</button>
+            <button class="open-presentation" onclick="openPresentation()">Launch Presentation ↗</button>
+
+        </div>
+
+        
+
+        <div class="song-list" id="song-list">
+
+{% for song in songs %}
+    <div 
+        class="song" 
+        data-song-id="{{ song.song_id }}"
+        onclick="selectSong('{{ song.song_id }}')"
+    >
+        {% if song.song_number %}
+            {{ song.song_number }}.
+        {% endif %}
+        {{ song.title }}
+    </div>
+{% endfor %}
+        </div>
+        <footer>
+            <div style="padding:10px; font-size:12px; color:#999; text-align:center;">
+                <a style="color:#ddd; text-decoration:none;" href="https://sams2d.github.io/s2dlabs-portfolio/" target="_blank">Proclaimly Lyrics Presenter v3.1 by S2D Labs</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Right -->
+
+    <div class="content">
+
+        <div class="preview" id="preview"></div>
+
+        <div class="slide-position" id="slide-position"></div>
+
+        <div class="controls">
+
+            <button id="prevBtn" onclick="prevSlide()">Previous</button>
+
+            <button id="nextBtn" onclick="nextSlide()">Next</button>
+
+            <button id="blackBtn" class="secondary" onclick="toggleBlackout()">Black Screen</button>
+
+            <button id="bgBtn" class="secondary" onclick="toggleBackground()">Background</button>
+
+            <button id="clearBtn" onclick="clearSlide()">Clear</button>
+
+            <button class="danger" onclick="endPresentation()">End Presentation</button>
+
+        </div>
+
+    </div>
+
+</div>
+
+{{ standby_text|json_script:"standby-text-data" }}
+
+<script>
+    const STANDBY_TEXT = JSON.parse(document.getElementById('standby-text-data').textContent);
+
+    const channel = new BroadcastChannel('presentation');
+    let presentationWindow = null;
+
+    // The single source of truth, mirrored to the presentation window
+    let state = {
+        songId: null,
+        title: '',
+        slides: [],
+        slideIndex: 0,
+        blackout: false,
+        cleared: false,
+        altBackground: false,
+    };
+
+    function broadcast() {
+        localStorage.setItem('presentationState', JSON.stringify(state));
+        channel.postMessage(state);
+        renderPreview();
+    }
+
+    function renderPreview() {
+        const previewEl = document.getElementById('preview');
+        const positionEl = document.getElementById('slide-position');
+
+        if (!state.songId || state.cleared) {
+            previewEl.textContent = state.cleared ? '' : STANDBY_TEXT;
+            positionEl.textContent = '';
+        } else {
+            previewEl.textContent = state.slides[state.slideIndex] || '';
+            positionEl.textContent = state.title +
+                ' — slide ' + (state.slideIndex + 1) + ' / ' + state.slides.length;
+        }
+
+        document.getElementById('prevBtn').disabled = !state.songId || state.slideIndex <= 0;
+        document.getElementById('nextBtn').disabled = !state.songId ||
+            state.slideIndex >= state.slides.length - 1;
+        document.getElementById('blackBtn').classList.toggle('toggled', state.blackout);
+        document.getElementById('bgBtn').classList.toggle('toggled', state.altBackground);
+
+        document.querySelectorAll('.song').forEach(el => {
+            el.classList.toggle('active', Number(el.dataset.songId) === state.songId);
+        });
+    }
+
+    async function selectSong(songId) {
+        const response = await fetch(`/api/song/${songId}/`);
+        if (!response.ok) {
+            alert('Could not load that song.');
+            return;
+        }
+        const data = await response.json();
+        state.songId = data.song_id;
+        state.title = data.title;
+        state.slides = data.slides;
+        state.slideIndex = 0;
+        state.cleared = false;
+        state.blackout = false;
+        broadcast();
+    }
+
+    function nextSlide() {
+        if (!state.songId) return;
+        state.slideIndex = Math.min(state.slideIndex + 1, state.slides.length - 1);
+        state.cleared = false;
+        broadcast();
+    }
+
+    function prevSlide() {
+        if (!state.songId) return;
+        state.slideIndex = Math.max(state.slideIndex - 1, 0);
+        state.cleared = false;
+        broadcast();
+    }
+
+    function toggleBlackout() {
+        state.blackout = !state.blackout;
+        broadcast();
+    }
+
+    function clearSlide() {
+        state.cleared = true;
+        broadcast();
+    }
+
+    function toggleBackground() {
+        state.altBackground = !state.altBackground;
+        broadcast();
+    }
+
+    function endPresentation() {
+        state = {
+            songId: null,
+            title: '',
+            slides: [],
+            slideIndex: 0,
+            blackout: false,
+            cleared: false,
+            altBackground: false,
+        };
+        broadcast();
+        if (presentationWindow && !presentationWindow.closed) {
+            presentationWindow.close();
+        }
+    }
+
+    function openPresentation() {
+        presentationWindow = window.open(
+            '/presentation/',
+            'presentation',
+            'width=1024,height=576'
+        );
+    }
+    document.addEventListener('keydown', function(event) {
+
+    // Ignore keyboard shortcuts when typing into an input
+    if (
+        event.target.tagName === 'INPUT' ||
+        event.target.tagName === 'TEXTAREA'
+    ) {
+        return;
+    }
+
+    // Previous slide
+    if (event.key === 'ArrowLeft') {
+        prevSlide();
+        return;
+    }
+
+    // Next slide
+    if (event.key === 'ArrowRight') {
+        nextSlide();
+        return;
+    }
+
+    // Jump directly to slides 1-9
+    if (/^[1-9]$/.test(event.key)) {
+
+        if (!state.songId) return;
+
+        const slideNumber = Number(event.key);
+        const slideIndex = slideNumber - 1;
+
+        if (slideIndex < state.slides.length) {
+
+            state.slideIndex = slideIndex;
+            state.cleared = false;
+
+            broadcast();
+        }
+    }
+
+});
+    // Initial paint
+    renderPreview();
+</script>
+
+</body>
+</html>
