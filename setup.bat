@@ -116,6 +116,23 @@ echo.
 echo [SUCCESS] Migrations and database setup complete!
 echo.
 
+echo [INFO] You need atleast one Admin user to access the admin panel. If you do not create an Admin user, you will not be able to log in on the admin panel.
+echo.
+echo [INFO] If you already have Created an Admin user account, you can skip this step
+echo.
+set /p create_admin="Do you want to create an Admin user now? (Y/N): "
+if /I "%create_admin%"=="Y" (
+    echo.
+    echo [ALERT] You will now be prompted to create an Admin user for the application. Please follow the instructions to set up your admin credentials.
+    echo.
+    %pykey% manage.py createsuperuser
+    echo.
+    echo [SUCCESS] Admin user created!
+    echo.
+) else (
+    echo [INFO] Skipping Admin user creation. You can create an Admin user later by running the setup again
+)
+echo.
 echo [INFO] Finalizing setup...
 call .venv\Scripts\deactivate.bat
 echo.
