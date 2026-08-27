@@ -87,7 +87,7 @@ if %errorlevel%==0 (
 :continue_setup
 echo.
 echo [INFO] Creating virtual environment...
-%pykey% -m venv .venv
+%pykey% venv .venv
 echo.
 echo [SUCCESS] Virtual environment created!
 echo.
@@ -99,13 +99,13 @@ echo [SUCCESS] Virtual environment activated!
 echo.
 echo [INFO] Upgrading pip to the latest version...
 echo.
-%pykey% -m pip install --upgrade pip
+%pykey% pip install --upgrade pip
 echo.
 echo [SUCCESS] pip upgrade complete!
 echo.
 echo [INFO] Installing required dependencies...
 echo.
-%pykey% -m pip install django
+%pykey% pip install django
 echo [SUCCESS] Dependencies installed!
 echo.
 
