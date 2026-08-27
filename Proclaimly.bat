@@ -31,6 +31,7 @@ if %errorlevel%==0 (
 echo.
 echo [INFO] Attempting to launch the application...
 echo.
+start "" http://127.0.0.1:8000/
 %pykey% manage.py runserver
 if %errorlevel% neq 0 (
     echo.
