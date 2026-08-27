@@ -2,7 +2,7 @@
 
 ### Presentation Software by S2D Labs
 
-Proclaimly is a lightweight, web-based presentation application designed to make displaying lyrics, songs, and presentation content simple, reliable, and easy to manage.
+Proclaimly is a lightweight, web-based presentation application designed to make displaying Text, Song Lyrics, and presentation content simple, reliable, and easy to manage.
 
 Built with **Python and Django**, Proclaimly provides a clean interface for managing presentation content and displaying it through a browser.
 
