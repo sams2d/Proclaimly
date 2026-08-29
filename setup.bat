@@ -291,7 +291,7 @@ set /p "create_admin=Do you want to create an Admin user now? (Y/N): "
 if /I "%create_admin%"=="Y" (
     echo.
     echo [ALERT] You will now be prompted to create an Admin user.
-    echo [INFO] Please follow the instructions shown by Django.
+    echo [INFO] Please follow the instructions.
     echo.
 
     .venv\Scripts\python.exe manage.py createsuperuser

@@ -1,6 +1,7 @@
 from django.db import models
 from html.parser import HTMLParser
 
+
 class LyricsHTMLParser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -12,14 +13,27 @@ class LyricsHTMLParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag == 'br':
-            self.lines.append(''.join(self.current_line).strip())
-            self.current_line = []
+            self._flush_line()
+
+    def handle_startendtag(self, tag, attrs):
+        # Self-closing tags like <br/> come through here, not handle_starttag.
+        if tag == 'br':
+            self._flush_line()
 
     def handle_endtag(self, tag):
         if tag == 'p':
-            if self.current_line:
-                self.lines.append(''.join(self.current_line).strip())
-                self.current_line = []
+            self._flush_line()
+
+    def _flush_line(self):
+        if self.current_line:
+            self.lines.append(''.join(self.current_line).strip())
+            self.current_line = []
+
+    def close(self):
+        # Flush any trailing text that wasn't followed by </p> or <br>.
+        self._flush_line()
+        super().close()
+
 
 class Song(models.Model):
     song_id = models.AutoField(primary_key=True)
@@ -47,6 +61,7 @@ class Song(models.Model):
 
             parser = LyricsHTMLParser()
             parser.feed(block)
+            parser.close()
 
             lines = [line for line in parser.lines if line]
 
